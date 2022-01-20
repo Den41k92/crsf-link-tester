@@ -44,7 +44,7 @@ void setup() {
 				if (channel_data_ptr != nullptr) {
 					crsf_channels_t * c = channel_data_ptr;
 					uint32_t channel_data [] = {c->ch0, c->ch1, c->ch2, c->ch3, c->ch4, c->ch5, c->ch6, c->ch7};
-					UI_setChannels8(channel_data);
+					UI_setChannels10(channel_data);
 				}
 				link_stat_ptr = nullptr;
 				channel_data_ptr = nullptr;

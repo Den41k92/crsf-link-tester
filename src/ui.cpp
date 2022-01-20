@@ -8,6 +8,7 @@ static TFT_eSprite lq_text(&M5.Lcd);
 static TFT_eSprite lq_bar(&M5.Lcd);
 static TFT_eSprite tx_pwr_text(&M5.Lcd);
 static TFT_eSprite link_rate_text(&M5.Lcd);
+static TFT_eSprite rx_frame_indicator_bar(&M5.Lcd);
 
 static TFT_eSprite ch1_text(&M5.Lcd);
 static TFT_eSprite ch2_text(&M5.Lcd);
@@ -17,6 +18,8 @@ static TFT_eSprite ch5_text(&M5.Lcd);
 static TFT_eSprite ch6_text(&M5.Lcd);
 static TFT_eSprite ch7_text(&M5.Lcd);
 static TFT_eSprite ch8_text(&M5.Lcd);
+static TFT_eSprite ch9_text(&M5.Lcd);
+static TFT_eSprite ch10_text(&M5.Lcd);
 
 static TFT_eSprite ch1_bar(&M5.Lcd);
 static TFT_eSprite ch2_bar(&M5.Lcd);
@@ -26,13 +29,15 @@ static TFT_eSprite ch5_bar(&M5.Lcd);
 static TFT_eSprite ch6_bar(&M5.Lcd);
 static TFT_eSprite ch7_bar(&M5.Lcd);
 static TFT_eSprite ch8_bar(&M5.Lcd);
+static TFT_eSprite ch9_bar(&M5.Lcd);
+static TFT_eSprite ch10_bar(&M5.Lcd);
 
 static const TFT_eSprite * channel_texts [] = {
-	&ch1_text, &ch2_text, &ch3_text, &ch4_text, &ch5_text, &ch6_text, &ch7_text, &ch8_text
+	&ch1_text, &ch2_text, &ch3_text, &ch4_text, &ch5_text, &ch6_text, &ch7_text, &ch8_text, &ch9_text, &ch10_text
 };
 
 static const TFT_eSprite * channel_bars [] = {
-	&ch1_bar, &ch2_bar, &ch3_bar, &ch4_bar, &ch5_bar, &ch6_bar, &ch7_bar, &ch8_bar
+	&ch1_bar, &ch2_bar, &ch3_bar, &ch4_bar, &ch5_bar, &ch6_bar, &ch7_bar, &ch8_bar, &ch9_bar, &ch10_bar
 };
 
 static int rssi_scale_min = 120;
@@ -63,10 +68,12 @@ void UI_setup() {
 	createElement(lq_bar, 2, 200, 20, TFT_GREENYELLOW);
 	createElement(tx_pwr_text, 2, 100, 20, TFT_DARKGREY);
 	createElement(link_rate_text, 2, 100, 20, TFT_DARKGREY);
+	createElement(rx_frame_indicator_bar, 2, 200, 50, TFT_DARKGREY);
+	rx_frame_indicator_bar.setScrollRect(2, 2, rx_frame_indicator_bar.width()-2, rx_frame_indicator_bar.height()-2, TFT_BLACK);
 	
-	for (uint8_t i=0; i < 8; i++) {
+	for (uint8_t i=0; i < 10; i++) {
 		createElement((TFT_eSprite&) *channel_texts[i], 1, 90, 10, TFT_WHITE);
-		createElement((TFT_eSprite&) *channel_bars[i], 1, 210, 10, TFT_LIGHTGREY);
+		createElement((TFT_eSprite&) *channel_bars[i], 1, 210, 9, TFT_LIGHTGREY);
 	}
 
 }
@@ -104,19 +111,24 @@ void UI_setRssiScale(int dbm_min, int dbm_max) {
 	rssi_scale_max = dbm_max;
 }
 
-void UI_setChannels8(uint32_t * channel_data_8) {
-	for (uint8_t i=0; i < 8; i++) {
+void UI_setChannels10(uint32_t * channel_data_10) {
+	for (uint8_t i=0; i < 10; i++) {
 		TFT_eSprite& text = (TFT_eSprite&) *channel_texts[i];
 		TFT_eSprite& bar = (TFT_eSprite&) *channel_bars[i];
-		int v_offset = 140 + 12 * i;
+		int v_offset = 140 + 10 * i;
 
 		clearSprite(text);
-		text.printf("CH%d: %d", i+1, channel_data_8[i]);
+		text.printf("CH%2d: %4d", i+1, channel_data_10[i]);
 		text.pushSprite(10, v_offset);
 
 		clearSprite(bar);
-		drawProgressBar(bar, TFT_LIGHTGREY, channel_data_8[i], 172, 1810);
+		drawProgressBar(bar, TFT_LIGHTGREY, channel_data_10[i], 172, 1810);
 		bar.pushSprite(110, v_offset);
 	}
+}
 
+void UI_pushDataFrameIndication(bool received_within_timeout) {
+	rx_frame_indicator_bar.scroll(-1, 0);
+	rx_frame_indicator_bar.drawFastVLine(rx_frame_indicator_bar.width()-2, 2, rx_frame_indicator_bar.height() - 2, received_within_timeout ? TFT_GREEN : TFT_RED);
+	rx_frame_indicator_bar.pushSprite(110, 70);
 }
