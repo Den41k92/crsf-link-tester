@@ -26,29 +26,24 @@ void setup() {
 	// Screen rendering on CORE 0
 	disableCore0WDT();
 	xTaskCreatePinnedToCore([](void * parameters) {
-		uint32_t t = millis();
 		for(;;) {
-			if (millis() - t >= 20) {
-				t = millis();
-				if (link_stat_ptr != nullptr) { 
-					crsf_payload_link_statistics_t * sig = link_stat_ptr;
-					Serial.printf("RSSI: %d, LQ: %d, RFMODE: %d, TXPWR: %d\n", 
-						sig->uplink_RSSI_1, sig->uplink_Link_quality, sig->rf_Mode, CRSF_txPowerToMilliwatts(sig->uplink_TX_Power));
-					UI_setRssi(sig->uplink_RSSI_1);
-					UI_setLq(sig->uplink_Link_quality);
-					UI_setTxPwr(CRSF_txPowerToMilliwatts(sig->uplink_TX_Power));
-					UI_setLinkRate(CRSF_rfmdToLinkRateHz(sig->rf_Mode));
-					UI_setRssiScale(CRSF_rfmdToRxSensitivity(sig->rf_Mode), 50);
-					
-				}
-				if (channel_data_ptr != nullptr) {
-					crsf_channels_t * c = channel_data_ptr;
-					uint32_t channel_data [] = {c->ch0, c->ch1, c->ch2, c->ch3, c->ch4, c->ch5, c->ch6, c->ch7};
-					UI_setChannels10(channel_data);
-				}
+			if (link_stat_ptr != nullptr) { 
+				crsf_payload_link_statistics_t * sig = link_stat_ptr;
+				Serial.printf("RSSI: %d, LQ: %d, RFMODE: %d, TXPWR: %d\n", 
+					sig->uplink_RSSI_1, sig->uplink_Link_quality, sig->rf_Mode, CRSF_txPowerToMilliwatts(sig->uplink_TX_Power));
+				UI_setRssi(sig->uplink_RSSI_1);
+				UI_setLq(sig->uplink_Link_quality);
+				UI_setTxPwr(CRSF_txPowerToMilliwatts(sig->uplink_TX_Power));
+				UI_setLinkRate(CRSF_rfmdToLinkRateHz(sig->rf_Mode));
+				UI_setRssiScale(CRSF_rfmdToRxSensitivity(sig->rf_Mode), 50);
 				link_stat_ptr = nullptr;
-				channel_data_ptr = nullptr;
 			}
+			if (channel_data_ptr != nullptr) {
+				crsf_channels_t * c = channel_data_ptr;
+				uint32_t channel_data [] = {c->ch0, c->ch1, c->ch2, c->ch3, c->ch4, c->ch5, c->ch6, c->ch7};
+				UI_setChannels10(channel_data);
+				channel_data_ptr = nullptr;
+			}	
 			yield();
 		}
 	}, "lcd", 8*1024, NULL, 1, &task_lcd, 0);

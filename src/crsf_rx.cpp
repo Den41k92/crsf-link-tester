@@ -10,10 +10,34 @@ static const int rfmd_to_link_rate_tbs [] = {4, 50, 150};
 static const int rfmd_dbm_sensitivity [] = {125, 123, 120, 117, 112, 112, 108, 105}; // expresslrs
 static const int * rfmd_to_link_rate;
 static int rfmd_to_link_rate_len = 0;
+static uint8_t crc8_lut [255];
 
-static uint8_t crsf_frame_buffer [CRSF_FRAME_SIZE_MAX+2];
+static uint8_t crsf_frame_buffer [CRSF_FRAME_SIZE_MAX*2];
+static int crsf_frame_buffer_pos = 0;
+
+
+static void CRC8_createLut(uint8_t poly)
+{
+	for (int i=0; i < 256; i++) {
+		uint8_t crc = i;
+		for (int j=0; j < 8; j++) {
+			crc = (crc << 1) ^ ((crc & 0x80) ? poly : 0);
+		}
+		crc8_lut[i] = crc & 0xff;
+	}
+}
+
+static uint8_t CRC8_calculate(uint8_t * data, int len) {
+	uint8_t crc = 0;
+	for (int i=0; i < len; i++) {
+		crc = crc8_lut[crc ^ *data++];
+	}
+	return crc;
+}
+
 static crsf_payload_link_statistics_t crsf_link_stats;
 static crsf_channels_t crsf_channels_data;
+
 
 static void (*link_statistics_callback)(crsf_payload_link_statistics_t * link_info) = nullptr;
 static void (*channel_data_callback)(crsf_channels_t * channels) = nullptr;
@@ -29,7 +53,8 @@ void CRSF_RX_begin(crsf_rx_variant_e rx_variant) {
 		rfmd_to_link_rate_len = sizeof(rfmd_to_link_rate_elrs);
 	}
 	Serial1.begin(CRSF_BAUDRATE, 134217756U, G13, G14);
-	Serial1.setTimeout(1);
+	Serial1.setTimeout(0);
+	CRC8_createLut(0xD5);
 }
 
 void CRSF_RX_onReceiveLinkStatistics(void (*callback)(crsf_payload_link_statistics_t * link_info)) {
@@ -40,27 +65,59 @@ void CRSF_RX_onReceiveChannelData(void (*callback)(crsf_channels_t * channels)) 
 	channel_data_callback = callback;
 }
 
-IRAM_ATTR void CRSF_RX_loop() {
-	int nbytes = Serial1.readBytes(crsf_frame_buffer, CRSF_FRAME_SIZE_MAX+2);
-	if (nbytes == 0)
-		return;
-
-	// Serial.printf("rx frame len = %d\n", nbytes);
-	if (nbytes == 14) {
-		if (memcmp(crsf_frame_buffer, LINKSTAT_FRAME_START_SEQ, 3) == 0) {
+bool processFrame() {
+	// check for CRC
+	int address = crsf_frame_buffer[0];
+	int length = crsf_frame_buffer[1];
+	int frame_type = crsf_frame_buffer[2];
+	int expected_crc = crsf_frame_buffer[length + 1];
+	if (CRC8_calculate(&crsf_frame_buffer[2], length - 1) == expected_crc) { // expected crc
+		if (frame_type == CRSF_FRAMETYPE_LINK_STATISTICS && length == CRSF_FRAME_LINK_STATISTICS_PAYLOAD_SIZE + 2) {
 			memcpy(&crsf_link_stats, &crsf_frame_buffer[3], sizeof(crsf_payload_link_statistics_t));
 			if (link_statistics_callback != nullptr)
 				link_statistics_callback(&crsf_link_stats);
 		}
 		// Serial.printf("len: %02X %02X %02X\n", crsf_frame_buffer[0], crsf_frame_buffer[1], crsf_frame_buffer[2]);
-	}
-	else if (nbytes == 26) {
-		// Serial.printf("len: %d : %02X %02X %02X\n", nbytes, crsf_frame_buffer[0], crsf_frame_buffer[1], crsf_frame_buffer[2]);
-		if (memcmp(crsf_frame_buffer, CHANNEL_DATA_FRAME_START_SEQ, 3) == 0) {
-			//memcpy(crsf_channels_buffer, &crsf_frame_buffer[3], sizeof(crsf_channels_buffer));
+		else if (frame_type == CRSF_FRAMETYPE_RC_CHANNELS_PACKED && length == CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE + 2) {
 			memcpy(&crsf_channels_data, &crsf_frame_buffer[3], sizeof(crsf_channels_t));
 			if (channel_data_callback != nullptr) 
 				channel_data_callback(&crsf_channels_data);
+		}
+		else {
+			Serial.printf("len: %d : %02X %02X %02X\n", length, crsf_frame_buffer[0], crsf_frame_buffer[1], crsf_frame_buffer[2]);
+		}
+		return true;
+	}
+	else {
+		Serial.printf("Frame error: wrong CRC\n");
+	}
+	return false;
+}
+
+inline void flushFrameBuffer() {
+	crsf_frame_buffer_pos = 0;
+}
+
+IRAM_ATTR void CRSF_RX_loop() {
+	while (Serial1.available() && crsf_frame_buffer_pos < CRSF_FRAME_SIZE_MAX + 2) {
+		crsf_frame_buffer[crsf_frame_buffer_pos++] = Serial1.read();
+	}
+
+	if (crsf_frame_buffer_pos > 3) {
+		int expected_frame_len = crsf_frame_buffer[CRSF_FRAME_LENGTH_ADDRESS];
+		int full_frame_length = expected_frame_len + 2;
+		if (full_frame_length > CRSF_FRAME_SIZE_MAX) {
+			Serial.printf("Frame error: size if too large = %d\n", full_frame_length);
+			flushFrameBuffer();
+		}
+		else if (crsf_frame_buffer_pos >= full_frame_length) {
+			if (processFrame()) {
+				crsf_frame_buffer_pos -= full_frame_length; // subtract frame size from write pointer
+				memcpy(crsf_frame_buffer, &crsf_frame_buffer[full_frame_length], crsf_frame_buffer_pos); // put the remaining bytes into beginning
+			}
+			else {
+				flushFrameBuffer();
+			}
 		}
 	}
 }
