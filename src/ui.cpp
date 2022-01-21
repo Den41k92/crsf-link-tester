@@ -32,6 +32,8 @@ static TFT_eSprite ch8_bar(&M5.Lcd);
 static TFT_eSprite ch9_bar(&M5.Lcd);
 static TFT_eSprite ch10_bar(&M5.Lcd);
 
+static uint32_t packet_counter = 0;
+
 static const TFT_eSprite * channel_texts [] = {
 	&ch1_text, &ch2_text, &ch3_text, &ch4_text, &ch5_text, &ch6_text, &ch7_text, &ch8_text, &ch9_text, &ch10_text
 };
@@ -68,14 +70,19 @@ void UI_setup() {
 	createElement(lq_bar, 2, 200, 20, TFT_GREENYELLOW);
 	createElement(tx_pwr_text, 2, 100, 20, TFT_DARKGREY);
 	createElement(link_rate_text, 2, 100, 20, TFT_DARKGREY);
-	createElement(rx_frame_indicator_bar, 2, 200, 50, TFT_DARKGREY);
-	rx_frame_indicator_bar.setScrollRect(2, 2, rx_frame_indicator_bar.width()-2, rx_frame_indicator_bar.height()-2, TFT_BLACK);
-	
+	createElement(rx_frame_indicator_bar, 4, 200, 50, TFT_ORANGE);
+	rx_frame_indicator_bar.setScrollRect(0, 0, rx_frame_indicator_bar.width(), rx_frame_indicator_bar.height(), TFT_BLACK);
 	for (uint8_t i=0; i < 10; i++) {
 		createElement((TFT_eSprite&) *channel_texts[i], 1, 90, 10, TFT_WHITE);
 		createElement((TFT_eSprite&) *channel_bars[i], 1, 210, 9, TFT_LIGHTGREY);
 	}
-
+	rx_frame_indicator_bar.print("RX WAIT");
+	rx_frame_indicator_bar.setTextColor(TFT_BLACK);
+	rx_frame_indicator_bar.pushSprite(110, 70);
+	UI_setRssi(0);
+	UI_setLq(0);
+	UI_setTxPwr(0);
+	UI_setLinkRate(0);
 }
 
 void UI_setLq(int percent) {
@@ -88,9 +95,15 @@ void UI_setLq(int percent) {
 
 void UI_setRssi(int dbm) {
 	clearSprite(rssi_text);
-	rssi_text.printf("RS %d", dbm);
+	if (dbm > 0) {
+		rssi_text.printf("RS -%d", dbm);
+		drawProgressBar(rssi_bar, TFT_CYAN, dbm, rssi_scale_min, rssi_scale_max);
+	}
+	else {
+		rssi_text.printf("RX WAIT");
+		drawProgressBar(rssi_bar, TFT_RED, 0, 0, 1);
+	}
 	rssi_text.pushSprite(10, 10);
-	drawProgressBar(rssi_bar, TFT_CYAN, dbm, rssi_scale_min, rssi_scale_max);
 	rssi_bar.pushSprite(110, 10);
 }
 
@@ -127,8 +140,29 @@ void UI_setChannels10(uint32_t * channel_data_10) {
 	}
 }
 
-void UI_pushDataFrameIndication(bool received_within_timeout) {
-	rx_frame_indicator_bar.scroll(-1, 0);
-	rx_frame_indicator_bar.drawFastVLine(rx_frame_indicator_bar.width()-2, 2, rx_frame_indicator_bar.height() - 2, received_within_timeout ? TFT_GREEN : TFT_RED);
+void UI_pushDataFrameIndication(uint8_t * results, int count) {
+	for (int i=0; i < count; i++) {
+		rx_frame_indicator_bar.scroll(1, 0);
+		uint16_t color = TFT_DARKGREY;
+		switch ((crsf_packet_result_e) results[i]) {
+			case CRSF_RESULT_PACKET_OK:
+				color = TFT_GREEN;
+				break;
+			case CRSF_RESULT_PACKET_TIMEOUT:
+				color = TFT_RED;
+				break;
+			default:
+				color = TFT_DARKGREY;
+		}
+		// draw vertical line
+		rx_frame_indicator_bar.drawFastVLine(1, 0, rx_frame_indicator_bar.height(), color);
+		// draw small vertical bars every 25 pixels
+		if ((packet_counter + i) % 25 == 0) {
+			rx_frame_indicator_bar.drawFastVLine(1, rx_frame_indicator_bar.height() - 5, rx_frame_indicator_bar.height(), TFT_WHITE);
+		}
+	}
+	rx_frame_indicator_bar.drawRect(0, 0, rx_frame_indicator_bar.width(), rx_frame_indicator_bar.height(), TFT_DARKCYAN);
 	rx_frame_indicator_bar.pushSprite(110, 70);
+	packet_counter += count;
 }
+
