@@ -26,7 +26,11 @@ void setup() {
 	M5.begin(true, false, false);
 	UI_setup();
 	Serial.begin(115200);
-	CRSF_RX_begin(CRSF_RX_VARIANT_ELRS);
+	#if defined(RX_VARIANT_TBS)
+		CRSF_RX_begin(CRSF_RX_VARIANT_TBS);
+	#else
+		CRSF_RX_begin(CRSF_RX_VARIANT_ELRS);
+	#endif 
 	CRSF_RX_onReceiveLinkStatistics([](crsf_payload_link_statistics_t * stats) { 
 		link_stat_ptr = stats;
 		Serial.printf("RSSI: %d, LQ: %d, RFMODE: %d, TXPWR: %d\n", 
