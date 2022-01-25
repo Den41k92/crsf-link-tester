@@ -45,6 +45,12 @@ static const TFT_eSprite * channel_bars [] = {
 static int rssi_scale_min = 120;
 static int rssi_scale_max = 50;
 
+// remember last values to prevent unnecessary sprite updates
+static int current_rc_channels_data [10] = {0};
+static int current_rssi = -1;
+static int current_lq = -1;
+static int current_pw = -1;
+
 
 static void createElement(TFT_eSprite &sprite, uint8_t font_size, uint16_t width, uint16_t height, uint16_t color) {
 	sprite.createSprite(width, height);
@@ -86,31 +92,40 @@ void UI_setup() {
 }
 
 void UI_setLq(int percent) {
-	clearSprite(lq_text);
-	lq_text.printf("LQ %d", percent);
-	lq_text.pushSprite(10, 40);
-	drawProgressBar(lq_bar, TFT_GREENYELLOW, percent, 0, 100);
-	lq_bar.pushSprite(110, 40);
+	if (percent != current_lq) {
+		current_lq = percent;
+		clearSprite(lq_text);
+		lq_text.printf("LQ %d", percent);
+		lq_text.pushSprite(10, 40);
+		drawProgressBar(lq_bar, TFT_GREENYELLOW, percent, 0, 100);
+		lq_bar.pushSprite(110, 40);
+	}
 }
 
 void UI_setRssi(int dbm) {
-	clearSprite(rssi_text);
-	if (dbm > 0) {
-		rssi_text.printf("RS -%d", dbm);
-		drawProgressBar(rssi_bar, TFT_CYAN, dbm, rssi_scale_min, rssi_scale_max);
+	if (dbm != current_rssi) {
+		current_rssi = dbm;
+		clearSprite(rssi_text);
+		if (dbm > 0) {
+			rssi_text.printf("RS -%d", dbm);
+			drawProgressBar(rssi_bar, TFT_CYAN, dbm, rssi_scale_min, rssi_scale_max);
+		}
+		else {
+			rssi_text.printf("RX WAIT");
+			drawProgressBar(rssi_bar, TFT_RED, 0, 0, 1);
+		}
+		rssi_text.pushSprite(10, 10);
+		rssi_bar.pushSprite(110, 10);
 	}
-	else {
-		rssi_text.printf("RX WAIT");
-		drawProgressBar(rssi_bar, TFT_RED, 0, 0, 1);
-	}
-	rssi_text.pushSprite(10, 10);
-	rssi_bar.pushSprite(110, 10);
 }
 
 void UI_setTxPwr(int value) {
-	clearSprite(tx_pwr_text);
-	tx_pwr_text.printf("PW %d", value);
-	tx_pwr_text.pushSprite(10, 70);
+	if (value != current_pw) {
+		current_pw = value;
+		clearSprite(tx_pwr_text);
+		tx_pwr_text.printf("PW %d", value);
+		tx_pwr_text.pushSprite(10, 70);
+	}
 }
 
 void UI_setLinkRate(int hz) {
@@ -126,17 +141,22 @@ void UI_setRssiScale(int dbm_min, int dbm_max) {
 
 void UI_setChannels10(uint32_t * channel_data_10) {
 	for (uint8_t i=0; i < 10; i++) {
-		TFT_eSprite& text = (TFT_eSprite&) *channel_texts[i];
-		TFT_eSprite& bar = (TFT_eSprite&) *channel_bars[i];
-		int v_offset = 140 + 10 * i;
+		int value =  channel_data_10[i];
+		// update graphics only if the current channel value is different from previous
+		if (value != current_rc_channels_data[i]) {
+			current_rc_channels_data[i] = value;
+			TFT_eSprite& text = (TFT_eSprite&) *channel_texts[i];
+			TFT_eSprite& bar = (TFT_eSprite&) *channel_bars[i];
+			int v_offset = 140 + 10 * i;
 
-		clearSprite(text);
-		text.printf("CH%2d: %4d", i+1, channel_data_10[i]);
-		text.pushSprite(10, v_offset);
+			clearSprite(text);
+			text.printf("CH%2d: %4d", i+1, value);
+			text.pushSprite(10, v_offset);
 
-		clearSprite(bar);
-		drawProgressBar(bar, TFT_LIGHTGREY, channel_data_10[i], 172, 1810);
-		bar.pushSprite(110, v_offset);
+			clearSprite(bar);
+			drawProgressBar(bar, TFT_LIGHTGREY, value, 172, 1810);
+			bar.pushSprite(110, v_offset);
+		}
 	}
 }
 
