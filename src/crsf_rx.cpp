@@ -1,5 +1,12 @@
 #include "crsf_rx.h"
-#include <M5Core2.h> 
+
+#ifdef BOARD_M5CORE2
+	#include <M5Core2.h> 
+	#define PIN_RX G13
+	#define PIN_TX G14
+#else
+	#include <Arduino.h>
+#endif // BOARD_M5CORE2
 
 static const uint8_t LINKSTAT_FRAME_START_SEQ [] = {CRSF_ADDRESS_FLIGHT_CONTROLLER, 10+2, CRSF_FRAMETYPE_LINK_STATISTICS}; // 0xC8, 0x0C, 0x14
 static const uint8_t CHANNEL_DATA_FRAME_START_SEQ [] = {CRSF_ADDRESS_FLIGHT_CONTROLLER, 22+2, CRSF_FRAMETYPE_RC_CHANNELS_PACKED};
@@ -53,7 +60,7 @@ void CRSF_RX_begin(crsf_rx_variant_e rx_variant) {
 		rfmd_to_link_rate = rfmd_to_link_rate_elrs;
 		rfmd_to_link_rate_len = sizeof(rfmd_to_link_rate_elrs);
 	}
-	Serial1.begin(CRSF_BAUDRATE, 134217756U, G13, G14);
+	Serial1.begin(CRSF_BAUDRATE, 134217756U, PIN_RX, PIN_TX);
 	Serial1.setTimeout(0);
 	CRC8_createLut(0xD5);
 }

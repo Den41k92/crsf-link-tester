@@ -1,36 +1,43 @@
 
 #include "ui.h"
-#include <M5Core2.h>
+#ifdef BOARD_M5CORE2
+	#include <M5Core2.h>
+	#define lcd M5.Lcd
+#else
+	#include <TFT_eSPI.h>
+	static TFT_eSPI _lcd = TFT_eSPI();
+	#define lcd _lcd
+#endif
 
-static TFT_eSprite rssi_text(&M5.Lcd);
-static TFT_eSprite rssi_bar(&M5.Lcd);
-static TFT_eSprite lq_text(&M5.Lcd);
-static TFT_eSprite lq_bar(&M5.Lcd);
-static TFT_eSprite tx_pwr_text(&M5.Lcd);
-static TFT_eSprite link_rate_text(&M5.Lcd);
-static TFT_eSprite rx_frame_indicator_bar(&M5.Lcd);
+static TFT_eSprite rssi_text(&lcd);
+static TFT_eSprite rssi_bar(&lcd);
+static TFT_eSprite lq_text(&lcd);
+static TFT_eSprite lq_bar(&lcd);
+static TFT_eSprite tx_pwr_text(&lcd);
+static TFT_eSprite link_rate_text(&lcd);
+static TFT_eSprite rx_frame_indicator_bar(&lcd);
 
-static TFT_eSprite ch1_text(&M5.Lcd);
-static TFT_eSprite ch2_text(&M5.Lcd);
-static TFT_eSprite ch3_text(&M5.Lcd);
-static TFT_eSprite ch4_text(&M5.Lcd);
-static TFT_eSprite ch5_text(&M5.Lcd);
-static TFT_eSprite ch6_text(&M5.Lcd);
-static TFT_eSprite ch7_text(&M5.Lcd);
-static TFT_eSprite ch8_text(&M5.Lcd);
-static TFT_eSprite ch9_text(&M5.Lcd);
-static TFT_eSprite ch10_text(&M5.Lcd);
+static TFT_eSprite ch1_text(&lcd);
+static TFT_eSprite ch2_text(&lcd);
+static TFT_eSprite ch3_text(&lcd);
+static TFT_eSprite ch4_text(&lcd);
+static TFT_eSprite ch5_text(&lcd);
+static TFT_eSprite ch6_text(&lcd);
+static TFT_eSprite ch7_text(&lcd);
+static TFT_eSprite ch8_text(&lcd);
+static TFT_eSprite ch9_text(&lcd);
+static TFT_eSprite ch10_text(&lcd);
 
-static TFT_eSprite ch1_bar(&M5.Lcd);
-static TFT_eSprite ch2_bar(&M5.Lcd);
-static TFT_eSprite ch3_bar(&M5.Lcd);
-static TFT_eSprite ch4_bar(&M5.Lcd);
-static TFT_eSprite ch5_bar(&M5.Lcd);
-static TFT_eSprite ch6_bar(&M5.Lcd);
-static TFT_eSprite ch7_bar(&M5.Lcd);
-static TFT_eSprite ch8_bar(&M5.Lcd);
-static TFT_eSprite ch9_bar(&M5.Lcd);
-static TFT_eSprite ch10_bar(&M5.Lcd);
+static TFT_eSprite ch1_bar(&lcd);
+static TFT_eSprite ch2_bar(&lcd);
+static TFT_eSprite ch3_bar(&lcd);
+static TFT_eSprite ch4_bar(&lcd);
+static TFT_eSprite ch5_bar(&lcd);
+static TFT_eSprite ch6_bar(&lcd);
+static TFT_eSprite ch7_bar(&lcd);
+static TFT_eSprite ch8_bar(&lcd);
+static TFT_eSprite ch9_bar(&lcd);
+static TFT_eSprite ch10_bar(&lcd);
 
 static uint32_t packet_counter = 0;
 
@@ -70,6 +77,17 @@ static void drawProgressBar(TFT_eSprite & s, uint16_t color, int val, int v_min,
 }
 
 void UI_setup() {
+	#ifndef BOARD_M5CORE2
+		// custom initialization code for non m5 board
+		lcd.init();
+		lcd.setRotation(1); // use landscape layout
+		lcd.fillScreen(TFT_BLACK);
+		#ifdef TFT_BACKLIGHT
+			// turn on the backlight if any
+			pinMode(TFT_BACKLIGHT, OUTPUT);
+			digitalWrite(TFT_BACKLIGHT, HIGH);
+		#endif
+	#endif // BOARD_M5CORE2
 	createElement(rssi_text, 2, 100, 20, TFT_CYAN);
 	createElement(rssi_bar, 2, 200, 20, TFT_CYAN);
 	createElement(lq_text, 2, 100, 20, TFT_GREENYELLOW);

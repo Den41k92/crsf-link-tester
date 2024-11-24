@@ -1,6 +1,10 @@
 
 #include <Arduino.h>
-#include <M5Core2.h> 
+
+#ifdef BOARD_M5CORE2
+	#include <M5Core2.h> 
+#endif
+
 #include <WiFi.h>
 // #include "mqtt_client.h"
 
@@ -23,7 +27,9 @@ void reportPacketResult(uint8_t result) {
 }
 
 void setup() {
-	M5.begin(true, false, false);
+	#ifdef BOARD_M5CORE2
+		M5.begin(true, false, false);
+	#endif
 	UI_setup();
 	Serial.begin(115200);
 	#if defined(RX_VARIANT_TBS)
